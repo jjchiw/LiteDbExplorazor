@@ -1,0 +1,85 @@
+﻿@page "/"
+@inject ILiteDbContext LiteDbContext
+@using LiteDB;
+
+<h1>LiteDb</h1>
+
+<div class="input-group mb-3">
+    <div class="input-group-prepend">
+        <label class="input-group-text" for="inputGroupSelect01">Collections</label>
+    </div>
+    <select class="custom-select" id="inputGroupSelect01" @bind="@CollectionSelected">
+        @foreach (var name in collections)
+        {
+            <option value="@name">@name</option>
+        }
+    </select>
+    <div class="input-group-append">
+        <button class="btn btn-outline-secondary" type="button" @onclick="LoadTable">Load</button>
+    </div>
+</div>
+
+@if (columns.Count > 0)
+{
+    <table class="table table-striped table-dark">
+        <thead>
+            <tr>
+                @foreach (var col in columns)
+                {
+                    <th scope="col">@col</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var doc in records)
+            {
+                <tr>
+                    @foreach (var col in columns)
+                    {
+                        <td>@doc[col].ToString()</td>
+                    }
+                </tr>
+
+            }
+        </tbody>
+    </table>
+
+
+}
+
+@code {
+    List<string> collections = new List<string>();
+    List<string> columns = new List<string>();
+    List<BsonDocument> records;
+    private string collectionSelected = "";
+
+    public string CollectionSelected
+    {
+        get { return collectionSelected; }
+        set
+        {
+            collectionSelected = value;
+            ResetRecords();
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        collections = LiteDbContext.Database.GetCollectionNames().ToList();
+        CollectionSelected = collections.FirstOrDefault();
+    }
+
+    void LoadTable()
+    {
+        var collection = LiteDbContext.Database.GetCollection(CollectionSelected);
+        records = collection.FindAll().ToList();
+        var first = records.FirstOrDefault();
+        columns = first.GetElements().Select(x => x.Key).ToList();
+    }
+
+    void ResetRecords()
+    {
+        columns?.Clear();
+        records?.Clear();
+    }
+}
