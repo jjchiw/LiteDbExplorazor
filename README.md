@@ -8,7 +8,10 @@ WebWindows + Blazor + LiteDb
 
 Just listing the collections.. and you can load data...
 
-There is no pagination yet, just a quick way to show data...
+~~There is no pagination yet, just a quick way to show data...~~
+
+[ ] Query
+[ ] More stuff..
 
 Anyway
 

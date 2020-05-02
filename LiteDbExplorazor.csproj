@@ -16,4 +16,12 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Db\sample.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Db\sample-log.db">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

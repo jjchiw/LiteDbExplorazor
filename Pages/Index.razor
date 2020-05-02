@@ -1,8 +1,22 @@
 ﻿@page "/"
-@inject ILiteDbContext LiteDbContext
 @using LiteDB;
+@using System.Linq;
 
-<h1>LiteDb</h1>
+<h1>
+    LiteDb
+</h1>
+
+
+<div class="input-group mb-3">
+    <div class="input-group-prepend">
+        <label class="input-group-text" for="inputGroupSelect01">Database</label>
+    </div>
+    <input type="text" class="form-control" @bind="databasePath">
+    <div class="input-group-append">
+        <button class="btn btn-outline-secondary" type="button" @onclick="OpenDatabase">Open</button>
+    </div>
+</div>
+
 
 <div class="input-group mb-3">
     <div class="input-group-prepend">
@@ -19,31 +33,58 @@
     </div>
 </div>
 
+<div class="input-group mb-3">
+    <div class="input-group-prepend">
+        <label class="input-group-text" for="inputGroupSelect01">Limit</label>
+    </div>
+    <input type="number" class="form-control" @bind="limit" max="1000" min="1">
+    <div class="input-group-append">
+        <button class="btn btn-outline-secondary" type="button" @onclick="LoadTable">Load</button>
+    </div>
+</div>
+
 @if (columns.Count > 0)
 {
-    <table class="table table-striped table-dark">
-        <thead>
-            <tr>
-                @foreach (var col in columns)
-                {
-                    <th scope="col">@col</th>
-                }
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var doc in records)
+    <div class="form-row">
+        <div class="form-group col-md-6">
+            <label for="inputEmail4">Total Rows @totalRecords</label>
+        </div>
+    </div>
+
+    <nav aria-label="Page navigation example">
+        <ul class="pagination justify-content-center">
+            @foreach (var pageNumber in Enumerable.Range(1, pages))
             {
+                <li class="page-item @( (pageNumber == activePage ? " active" : "") ) ">
+                    <a class="page-link" @onclick="@(e => MoveToPage(pageNumber))">@pageNumber</a>
+                </li>
+            }
+        </ul>
+    </nav>
+    <div class="table-responsive">
+        <table class="table table-striped table-dark">
+            <thead>
                 <tr>
                     @foreach (var col in columns)
                     {
-                        <td>@doc[col].ToString()</td>
+                        <th scope="col">@col</th>
                     }
                 </tr>
+            </thead>
+            <tbody>
+                @foreach (var doc in records)
+                {
+                    <tr>
+                        @foreach (var col in columns)
+                        {
+                            <td>@doc[col].ToString()</td>
+                        }
+                    </tr>
 
-            }
-        </tbody>
-    </table>
-
+                }
+            </tbody>
+        </table>
+    </div>
 
 }
 
@@ -51,7 +92,13 @@
     List<string> collections = new List<string>();
     List<string> columns = new List<string>();
     List<BsonDocument> records;
-    private string collectionSelected = "";
+    string collectionSelected = "";
+    string databasePath = "Db/sample.db";
+    LiteDatabase db;
+    int limit = 5;
+    int totalRecords;
+    int pages;
+    int activePage;
 
     public string CollectionSelected
     {
@@ -63,23 +110,55 @@
         }
     }
 
-    protected override void OnInitialized()
-    {
-        collections = LiteDbContext.Database.GetCollectionNames().ToList();
-        CollectionSelected = collections.FirstOrDefault();
-    }
-
     void LoadTable()
     {
-        var collection = LiteDbContext.Database.GetCollection(CollectionSelected);
-        records = collection.FindAll().ToList();
+        if (db == null)
+        {
+            return;
+        }
+        var collection = db.GetCollection(CollectionSelected);
+        totalRecords = collection.Count();
+        records = collection.Query().Limit(limit).ToList();
         var first = records.FirstOrDefault();
         columns = first.GetElements().Select(x => x.Key).ToList();
+
+        pages = (totalRecords / limit) + 1;
+        activePage = 1;
     }
 
     void ResetRecords()
     {
         columns?.Clear();
         records?.Clear();
+    }
+
+    void OpenDatabase()
+    {
+        if (string.IsNullOrEmpty(databasePath))
+        {
+            return;
+        }
+        try
+        {
+            db = new LiteDatabase(databasePath);
+            collections = db.GetCollectionNames().ToList();
+            CollectionSelected = collections.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+    }
+
+    void MoveToPage(int page)
+    {
+        var collection = db.GetCollection(CollectionSelected);
+        totalRecords = collection.Count();
+
+        var skip = (page - 1) * limit;
+        records = collection.Query().Skip(skip).Limit(limit).ToList();
+
+        pages = (totalRecords / limit) + 1;
+        activePage = page;
     }
 }
