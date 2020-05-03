@@ -1,6 +1,8 @@
 ﻿@page "/"
 @using LiteDB;
 @using System.Linq;
+@using Microsoft.CodeAnalysis.CSharp.Scripting;
+@using Microsoft.CodeAnalysis.Scripting;
 
 <h1>
     LiteDb
@@ -28,9 +30,6 @@
             <option value="@name">@name</option>
         }
     </select>
-    <div class="input-group-append">
-        <button class="btn btn-outline-secondary" type="button" @onclick="LoadTable">Load</button>
-    </div>
 </div>
 
 <div class="input-group mb-3">
@@ -40,6 +39,16 @@
     <input type="number" class="form-control" @bind="limit" max="1000" min="1">
     <div class="input-group-append">
         <button class="btn btn-outline-secondary" type="button" @onclick="LoadTable">Load</button>
+    </div>
+</div>
+
+<div class="form-group">
+    <label for="queryTextArea">Query</label>
+    <textarea class="form-control" id="queryTextArea" rows="5" @bind="queryText" spellcheck="false"></textarea>
+</div>
+<div class="input-group mb-3">
+    <div class="input-group">
+        <button class="btn btn-outline-secondary" type="button" @onclick="ExecuteQuery">Execute</button>
     </div>
 </div>
 
@@ -55,7 +64,7 @@
         <ul class="pagination justify-content-center">
             @foreach (var pageNumber in Enumerable.Range(1, pages))
             {
-                <li class="page-item @( (pageNumber == activePage ? " active" : "") ) ">
+                <li class="page-item @( (pageNumber == activePage ? " active" : "" ) ) ">
                     <a class="page-link" @onclick="@(e => MoveToPage(pageNumber))">@pageNumber</a>
                 </li>
             }
@@ -93,12 +102,17 @@
     List<string> columns = new List<string>();
     List<BsonDocument> records;
     string collectionSelected = "";
+    ILiteCollection<BsonDocument> _dbCol;
     string databasePath = "Db/sample.db";
     LiteDatabase db;
     int limit = 5;
     int totalRecords;
     int pages;
     int activePage;
+    string queryText = @"//Query over agents collection
+dbCol.Query().Where(x => x[""WorkingArea""] == ""London"")
+";
+    ILiteQueryable<BsonDocument> _queryDataQueryable;
 
     public string CollectionSelected
     {
@@ -107,6 +121,12 @@
         {
             collectionSelected = value;
             ResetRecords();
+
+            _queryDataQueryable = null;
+            _dbCol = db.GetCollection(CollectionSelected);
+            var first = _dbCol.Query().FirstOrDefault();
+            UpdateColumns(first);
+            MoveToPage(1);
         }
     }
 
@@ -116,14 +136,7 @@
         {
             return;
         }
-        var collection = db.GetCollection(CollectionSelected);
-        totalRecords = collection.Count();
-        records = collection.Query().Limit(limit).ToList();
-        var first = records.FirstOrDefault();
-        columns = first.GetElements().Select(x => x.Key).ToList();
 
-        pages = (totalRecords / limit) + 1;
-        activePage = 1;
     }
 
     void ResetRecords()
@@ -152,13 +165,54 @@
 
     void MoveToPage(int page)
     {
-        var collection = db.GetCollection(CollectionSelected);
-        totalRecords = collection.Count();
+        var queryable = _queryDataQueryable ?? _dbCol.Query();
+
+        totalRecords = queryable.Count();
 
         var skip = (page - 1) * limit;
-        records = collection.Query().Skip(skip).Limit(limit).ToList();
+        records = queryable.Skip(skip).Limit(limit).ToList();
 
-        pages = (totalRecords / limit) + 1;
+        pages = (totalRecords / limit);
+        if (pages == 0)
+        {
+            pages = 1;
+        }
+        Console.WriteLine("pages " + pages);
         activePage = page;
+    }
+
+    async Task ExecuteQuery()
+    {
+
+        var globals = new Globals { dbCol = _dbCol };
+        Console.WriteLine(queryText);
+        _queryDataQueryable = await CSharpScript.EvaluateAsync<ILiteQueryable<BsonDocument>>(
+            code: queryText,
+            options: ScriptOptions.Default
+                                    .WithImports("System.Linq", "LiteDB", "System.Collections.Generic", "System")
+                                    .AddReferences("LiteDb"),
+            globals: globals);
+
+        MoveToPage(1);
+
+        //records = _queryDataQueryable
+        //var first = records.FirstOrDefault();
+        //UpdateColumns(first);
+
+
+    }
+
+    void UpdateColumns(BsonDocument first)
+    {
+        if (first == null)
+        {
+            return;
+        }
+        columns = first.GetElements().Select(x => x.Key).ToList();
+    }
+
+    public class Globals
+    {
+        public ILiteCollection<BsonDocument> dbCol;
     }
 }

@@ -2,16 +2,16 @@
 
 WebWindows + Blazor + LiteDb
 
--   WebWindows (https://github.com/SteveSandersonMS/WebWindow)
--   Blazor (https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor)
--   LiteDb (https://www.litedb.org/)
+-   [WebWindows](https://github.com/SteveSandersonMS/WebWindow)
+-   [Blazor](https://dotnet.microsoft.com/apps/aspnet/web-apps/blazor)
+-   [LiteDb](https://www.litedb.org/)
+-   [Roslyn Scripting](https://github.com/dotnet/roslyn/wiki/Scripting-API-Samples)
 
 Just listing the collections.. and you can load data...
 
-~~There is no pagination yet, just a quick way to show data...~~
-
-[ ] Query
-[ ] More stuff..
+-   [x] Pagination
+-   [x] Query active collection
+-   [ ] More stuff..
 
 Anyway
 
